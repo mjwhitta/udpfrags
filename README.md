@@ -35,7 +35,7 @@ func clientExample() error {
     var e error
     var errs chan error
     var pkts chan *udpfrags.UDPPkt
-    var wait = make(chan struct{})
+    var wait = make(chan struct{}, 1)
 
     // Resolve address
     if addr, e = net.ResolveUDPAddr("udp", ":1194"); e != nil {
@@ -64,7 +64,9 @@ func clientExample() error {
         for e := range errs {
             // Handle errors
         }
+
         wait <- struct{}{}
+        close(wait)kwj;
     }()
 
     // Get received message
@@ -88,7 +90,7 @@ func serverExample() error {
     var errs chan error
     var pkts chan *udpfrags.UDPPkt
     var srv *net.UDPConn
-    var wait = make(chan struct{})
+    var wait = make(chan struct{}, 1)
 
     // Initialize UDP server
     if addr, e = net.ResolveUDPAddr("udp", ":1194"); e != nil {
@@ -108,7 +110,9 @@ func serverExample() error {
         for e := range errs {
             // Handle errors
         }
+
         wait <- struct{}{}
+        close(wait)
     }()
 
     // Loop thru received messages

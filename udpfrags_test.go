@@ -20,7 +20,7 @@ func echoClient(t *testing.T, address string) {
 	var errs chan error
 	var expected string
 	var pkts chan *udpfrags.UDPPkt
-	var wait = make(chan struct{})
+	var wait = make(chan struct{}, 1)
 
 	// Resolve address
 	if addr, e = net.ResolveUDPAddr("udp", address); e != nil {
@@ -57,7 +57,9 @@ func echoClient(t *testing.T, address string) {
 		for e := range errs {
 			t.Errorf("got: %s; want: nil", e.Error())
 		}
+
 		wait <- struct{}{}
+		close(wait)
 	}()
 
 	// Get received message
@@ -84,7 +86,7 @@ func echoServer(t *testing.T, address string) {
 	var errs chan error
 	var pkts chan *udpfrags.UDPPkt
 	var srv *net.UDPConn
-	var wait = make(chan struct{})
+	var wait = make(chan struct{}, 1)
 
 	// Initialize UDP server
 	if addr, e = net.ResolveUDPAddr("udp", address); e != nil {
@@ -104,7 +106,9 @@ func echoServer(t *testing.T, address string) {
 		for e := range errs {
 			t.Errorf("got: %s; want: nil", e.Error())
 		}
+
 		wait <- struct{}{}
+		close(wait)
 	}()
 
 	// Loop thru received messages
@@ -128,7 +132,7 @@ func echoServer(t *testing.T, address string) {
 func TestSendRecv(t *testing.T) {
 	var addr string = ":1194"
 	var e error
-	var wait = make(chan struct{})
+	var wait = make(chan struct{}, 1)
 
 	if e = udpfrags.SetBufferSize(10); e == nil {
 		t.Errorf("got: nil; want: %s", "Buffer size should be >= 256")
@@ -141,6 +145,7 @@ func TestSendRecv(t *testing.T) {
 	go func() {
 		echoServer(t, addr)
 		wait <- struct{}{}
+		close(wait)
 	}()
 
 	time.Sleep(time.Second)
