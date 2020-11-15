@@ -3,7 +3,7 @@ package udpfrags_test
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"fmt"
+	"encoding/hex"
 	"net"
 	"testing"
 	"time"
@@ -19,6 +19,8 @@ func echoClient(t *testing.T, address string) {
 	var e error
 	var errs chan error
 	var expected string
+	var hash [sha256.Size]byte
+	var n int
 	var pkts chan *udpfrags.UDPPkt
 	var wait = make(chan struct{}, 1)
 
@@ -28,15 +30,16 @@ func echoClient(t *testing.T, address string) {
 	}
 
 	// Generate random data
-	if _, e = rand.Read(data[:]); e != nil {
+	if n, e = rand.Read(data[:]); e != nil {
 		t.Fatalf("got: %s; want: nil", e.Error())
 	}
 
 	// Calculate hash
-	expected = fmt.Sprintf("%x", sha256.Sum256(data[:]))
+	hash = sha256.Sum256(data[:n])
+	expected = hex.EncodeToString(hash[:])
 
 	// Send data
-	if conn, e = udpfrags.Send(nil, addr, data[:]); e != nil {
+	if conn, e = udpfrags.Send(nil, addr, data[:n]); e != nil {
 		t.Fatalf("got: %s; want: nil", e.Error())
 	}
 	defer conn.Close()
@@ -65,7 +68,9 @@ func echoClient(t *testing.T, address string) {
 	// Get received message
 	for pkt := range pkts {
 		// Calculate hash
-		actual = fmt.Sprintf("%x", sha256.Sum256(pkt.Data))
+		if actual, e = pkt.Hash(); e != nil {
+			t.Errorf("got: %s; want: nils", e.Error())
+		}
 
 		if actual != expected {
 			t.Errorf("got: %s; want: %s", actual, expected)
@@ -135,7 +140,7 @@ func TestSendRecv(t *testing.T) {
 	var wait = make(chan struct{}, 1)
 
 	if e = udpfrags.SetBufferSize(10); e == nil {
-		t.Errorf("got: nil; want: %s", "Buffer size should be >= 256")
+		t.Errorf("got: nil; want: %s", "Buffer size should be >= 16")
 	}
 
 	if e = udpfrags.SetBufferSize(256); e != nil {

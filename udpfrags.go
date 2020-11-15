@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"strings"
+
+	"gitlab.com/mjwhitta/frgmnt"
 )
 
 // Recv will create a background thread to receive UDP fragments. It
@@ -68,11 +70,15 @@ func recvFrag(c *net.UDPConn, msgs chan *UDPPkt, errs chan error) {
 		}
 
 		// Append buffer to appropriate UDPPkt
-		q[addr.String()].AddFragment(int(frag), recv[8:n])
+		e = q[addr.String()].addFragment(int(frag), recv[8:n])
+		if e != nil {
+			errs <- e
+			continue
+		}
 
 		// If last fragment, return data/error via channels
-		if frag == frags {
-			if e = q[addr.String()].Finalize(); e != nil {
+		if q[addr.String()].finished() {
+			if e = q[addr.String()].finalize(); e != nil {
 				errs <- e
 			} else {
 				msgs <- q[addr.String()]
@@ -94,6 +100,7 @@ func Send(
 	data []byte,
 ) (*net.UDPConn, error) {
 	var e error
+	var s *frgmnt.Streamer = frgmnt.NewByteStreamer(data, bufSize-8)
 
 	// Initialize connection, if needed
 	if c == nil {
@@ -111,68 +118,39 @@ func Send(
 	}
 
 	// Send data in fragments
-	if e = sendFrag(c, addr, data); e != nil {
+	e = s.Each(
+		func(fragNum int, numFrags int, frag []byte) error {
+			var pkt []byte
+
+			pkt = make([]byte, len(frag)+8)
+			binary.BigEndian.PutUint32(pkt[:4], uint32(fragNum))
+			binary.BigEndian.PutUint32(pkt[4:8], uint32(numFrags))
+			copy(pkt[8:], frag[:])
+
+			if addr == nil {
+				if _, e = c.Write(pkt); e != nil {
+					return e
+				}
+			} else {
+				if _, e = c.WriteTo(pkt, addr); e != nil {
+					return e
+				}
+			}
+
+			return nil
+		},
+	)
+	if e != nil {
 		return nil, e
 	}
 
 	return c, nil
 }
 
-func sendFrag(c *net.UDPConn, addr *net.UDPAddr, data []byte) error {
-	var e error
-	var frag uint32
-	var frags uint32
-	var inc int = bufSize - 8
-	var max int = len(data)
-	var pkt []byte
-	var start int
-	var stop int
-
-	if c == nil {
-		return fmt.Errorf("UDP connection is nil")
-	}
-
-	// Determine number of fragments
-	frags = uint32(max / inc)
-	if max%inc != 0 {
-		frags++
-	}
-
-	// Loop thru fragments
-	for i := 0; i < max; i += inc {
-		// Calculate fragment size
-		start = i
-		stop = i + inc
-		if stop > max {
-			stop = max
-		}
-
-		// Build packet
-		frag++
-		pkt = make([]byte, stop-start+8)
-		binary.BigEndian.PutUint32(pkt[:4], uint32(frag))
-		binary.BigEndian.PutUint32(pkt[4:8], uint32(frags))
-		copy(pkt[8:], data[start:stop])
-
-		// Send fragment
-		if addr == nil {
-			if _, e = c.Write(pkt); e != nil {
-				return e
-			}
-		} else {
-			if _, e = c.WriteTo(pkt, addr); e != nil {
-				return e
-			}
-		}
-	}
-
-	return nil
-}
-
 // SetBufferSize will set the maximum size of each fragment.
 func SetBufferSize(size int) error {
-	if size < 256 {
-		return fmt.Errorf("Buffer size should be >= 256")
+	if size < 16 {
+		return fmt.Errorf("Buffer size should be >= 16")
 	}
 
 	bufSize = size
