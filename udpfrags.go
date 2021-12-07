@@ -14,11 +14,13 @@ import (
 // errors. The background thread is terminated when the specified
 // *net.UDPConn is closed by the caller.
 func Recv(c *net.UDPConn) (chan *UDPPkt, chan error, error) {
-	var msgs = make(chan *UDPPkt, 1024)
+	var e error
 	var errs = make(chan error, 1024)
+	var msgs = make(chan *UDPPkt, 1024)
 
 	if c == nil {
-		return msgs, errs, fmt.Errorf("UDP connection is nil")
+		e = fmt.Errorf("udpfrags: UDP connection is nil")
+		return msgs, errs, e
 	}
 
 	// Receive fragments in background thread
@@ -105,7 +107,10 @@ func Send(
 	// Initialize connection, if needed
 	if c == nil {
 		if addr == nil {
-			return nil, fmt.Errorf("UDPConn and UDPAddr are both nil")
+			e = fmt.Errorf(
+				"udpfrags: UDPConn and UDPAddr are both nil",
+			)
+			return nil, e
 		}
 
 		// Create connection
@@ -149,7 +154,7 @@ func Send(
 // SetBufferSize will set the maximum size of each fragment.
 func SetBufferSize(size int) error {
 	if size < 16 {
-		return fmt.Errorf("buffer size should be >= 16")
+		return fmt.Errorf("udpfrags: buffer size should be >= 16")
 	}
 
 	bufSize = size
