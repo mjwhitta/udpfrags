@@ -120,9 +120,8 @@ func Send(
 	// Send data in fragments
 	e = s.Each(
 		func(fragNum int, numFrags int, frag []byte) error {
-			var pkt []byte
+			var pkt = make([]byte, len(frag)+8)
 
-			pkt = make([]byte, len(frag)+8)
 			binary.BigEndian.PutUint32(pkt[:4], uint32(fragNum))
 			binary.BigEndian.PutUint32(pkt[4:8], uint32(numFrags))
 			copy(pkt[8:], frag[:])
@@ -150,7 +149,7 @@ func Send(
 // SetBufferSize will set the maximum size of each fragment.
 func SetBufferSize(size int) error {
 	if size < 16 {
-		return fmt.Errorf("Buffer size should be >= 16")
+		return fmt.Errorf("buffer size should be >= 16")
 	}
 
 	bufSize = size
