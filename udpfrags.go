@@ -2,10 +2,10 @@ package udpfrags
 
 import (
 	"encoding/binary"
-	"fmt"
 	"net"
 	"strings"
 
+	"gitlab.com/mjwhitta/errors"
 	"gitlab.com/mjwhitta/frgmnt"
 )
 
@@ -14,13 +14,11 @@ import (
 // errors. The background thread is terminated when the specified
 // *net.UDPConn is closed by the caller.
 func Recv(c *net.UDPConn) (chan *UDPPkt, chan error, error) {
-	var e error
 	var errs = make(chan error, 1024)
 	var msgs = make(chan *UDPPkt, 1024)
 
 	if c == nil {
-		e = fmt.Errorf("udpfrags: UDP connection is nil")
-		return msgs, errs, e
+		return msgs, errs, errors.New("UDP connection is nil")
 	}
 
 	// Receive fragments in background thread
@@ -51,7 +49,7 @@ func recvFrag(c *net.UDPConn, msgs chan *UDPPkt, errs chan error) {
 				break
 			}
 
-			errs <- e
+			errs <- errors.Newf("failed to read: %w", e)
 
 			if strings.HasSuffix(e.Error(), "i/o timeout") {
 				break
@@ -107,14 +105,13 @@ func Send(
 	// Initialize connection, if needed
 	if c == nil {
 		if addr == nil {
-			e = fmt.Errorf(
-				"udpfrags: UDPConn and UDPAddr are both nil",
-			)
+			e = errors.New("UDPConn and UDPAddr are both nil")
 			return nil, e
 		}
 
 		// Create connection
 		if c, e = net.DialUDP("udp", nil, addr); e != nil {
+			e = errors.Newf("failed to create connection: %w", e)
 			return nil, e
 		}
 
@@ -145,7 +142,7 @@ func Send(
 		},
 	)
 	if e != nil {
-		return nil, e
+		return nil, errors.Newf("failed to write: %w", e)
 	}
 
 	return c, nil
@@ -154,7 +151,7 @@ func Send(
 // SetBufferSize will set the maximum size of each fragment.
 func SetBufferSize(size int) error {
 	if size < 16 {
-		return fmt.Errorf("udpfrags: buffer size should be >= 16")
+		return errors.New("buffer size should be >= 16")
 	}
 
 	bufSize = size

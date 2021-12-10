@@ -3,6 +3,7 @@ package udpfrags
 import (
 	"net"
 
+	"gitlab.com/mjwhitta/errors"
 	"gitlab.com/mjwhitta/frgmnt"
 )
 
@@ -21,14 +22,18 @@ func NewUDPPkt(addr *net.UDPAddr, frags int) *UDPPkt {
 }
 
 func (p *UDPPkt) addFragment(frag int, data []byte) error {
-	return p.builder.Add(frag, data)
+	if e := p.builder.Add(frag, data); e != nil {
+		return errors.Newf("failed to add fragment %d: %w", frag, e)
+	}
+
+	return nil
 }
 
 func (p *UDPPkt) finalize() error {
 	var e error
 
 	if p.Data, e = p.builder.Get(); e != nil {
-		return e
+		return errors.Newf("failed to get reassembled data: %w", e)
 	}
 
 	p.Length = len(p.Data)
@@ -41,6 +46,10 @@ func (p *UDPPkt) finished() bool {
 }
 
 // Hash will return a SHA256 has of the packet's data.
-func (p *UDPPkt) Hash() (string, error) {
-	return p.builder.Hash()
+func (p *UDPPkt) Hash() (s string, e error) {
+	if s, e = p.builder.Hash(); e != nil {
+		e = errors.Newf("failed to get reassembled data: %w", e)
+	}
+
+	return
 }
