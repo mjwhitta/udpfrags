@@ -66,7 +66,7 @@ func clientExample() error {
         }
 
         wait <- struct{}{}
-        close(wait)kwj;
+        close(wait);
     }()
 
     // Get received message
