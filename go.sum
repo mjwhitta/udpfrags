@@ -7,8 +7,8 @@ github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5Cc
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 gitlab.com/mjwhitta/errors v1.0.0 h1:rivvgv4HCdIJ6Y6kFfPcirzKnBRewkjgsOktR0Uaj8g=
 gitlab.com/mjwhitta/errors v1.0.0/go.mod h1:5mFayhs7rnrBmc6kd3d1l1YaAY4is/IjYNVmCtJc0lU=
-gitlab.com/mjwhitta/frgmnt v1.4.2 h1:0fWW+hg305zOOkDuYoG/nK0hd68319RWn0CVHXxuSuI=
-gitlab.com/mjwhitta/frgmnt v1.4.2/go.mod h1:mmKPfh5E9WSgFc0H59M3beZqZPWK5wdtSIjW4t66rrI=
+gitlab.com/mjwhitta/frgmnt v1.4.3 h1:a3qA8xEz3a9Lp9+cwp8vEbI4rVmVQaD3jY1OaZBYmBw=
+gitlab.com/mjwhitta/frgmnt v1.4.3/go.mod h1:mmKPfh5E9WSgFc0H59M3beZqZPWK5wdtSIjW4t66rrI=
 gitlab.com/mjwhitta/pathname v1.2.0 h1:GWLgFYO4RjYutbpV4s0096xLAGEIZbLnsoz2r6rcBf0=
 gitlab.com/mjwhitta/pathname v1.2.0/go.mod h1:YwdjOokS5q2WvBcBhbGDhyhKbFhJjdltixBnkIYCFaQ=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
