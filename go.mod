@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	gitlab.com/mjwhitta/errors v1.0.0
-	gitlab.com/mjwhitta/frgmnt v1.4.3
+	gitlab.com/mjwhitta/frgmnt v1.4.4
 )
 
-require gitlab.com/mjwhitta/pathname v1.2.0 // indirect
+require gitlab.com/mjwhitta/pathname v1.2.1 // indirect
