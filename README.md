@@ -2,7 +2,8 @@
 
 <a href="https://www.buymeacoffee.com/mjwhitta">🍪 Buy me a cookie</a>
 
-[![Go Report Card](https://goreportcard.com/badge/gitlab.com/mjwhitta/udpfrags)](https://goreportcard.com/report/gitlab.com/mjwhitta/udpfrags)
+[![Go Report Card](https://goreportcard.com/badge/github.com/mjwhitta/udpfrags)](https://goreportcard.com/report/github.com/mjwhitta/udpfrags)
+![Workflow](https://github.com/mjwhitta/udpfrags/actions/workflows/ci.yaml/badge.svg?event=push)
 
 ## What is this?
 
@@ -13,7 +14,7 @@ A simple Go library to send and receive data via UDP in fragments.
 Open a terminal and run the following:
 
 ```
-$ go get --ldflags="-s -w" --trimpath -u gitlab.com/mjwhitta/udpfrags
+$ go get --ldflags="-s -w" --trimpath -u github.com/mjwhitta/udpfrags
 ```
 
 ## Usage
@@ -25,7 +26,7 @@ import (
     "net"
     ...
 
-    "gitlab.com/mjwhitta/udpfrags"
+    "github.com/mjwhitta/udpfrags"
     ...
 )
 
@@ -143,4 +144,4 @@ func serverExample() error {
 
 ## Links
 
-- [Source](https://gitlab.com/mjwhitta/udpfrags)
+- [Source](https://github.com/mjwhitta/udpfrags)

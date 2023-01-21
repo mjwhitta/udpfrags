@@ -3,8 +3,8 @@ package udpfrags
 import (
 	"net"
 
-	"gitlab.com/mjwhitta/errors"
-	"gitlab.com/mjwhitta/frgmnt"
+	"github.com/mjwhitta/errors"
+	"github.com/mjwhitta/frgmnt"
 )
 
 // UDPPkt is a combination of data ([]byte) and the *net.UDPAddr that

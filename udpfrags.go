@@ -5,8 +5,8 @@ import (
 	"net"
 	"strings"
 
-	"gitlab.com/mjwhitta/errors"
-	"gitlab.com/mjwhitta/frgmnt"
+	"github.com/mjwhitta/errors"
+	"github.com/mjwhitta/frgmnt"
 )
 
 // Recv will create a background thread to receive UDP fragments. It

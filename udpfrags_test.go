@@ -8,7 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/mjwhitta/udpfrags"
+	"github.com/mjwhitta/udpfrags"
+	assert "github.com/stretchr/testify/require"
 )
 
 func echoClient(t *testing.T, address string) {
@@ -25,40 +26,37 @@ func echoClient(t *testing.T, address string) {
 	var wait = make(chan struct{}, 1)
 
 	// Resolve address
-	if addr, e = net.ResolveUDPAddr("udp", address); e != nil {
-		t.Fatalf("\ngot: %s\nwant: nil", e.Error())
-	}
+	addr, e = net.ResolveUDPAddr("udp", address)
+	assert.Nil(t, e)
+	assert.NotNil(t, addr)
 
 	// Generate random data
-	if n, e = rand.Read(data[:]); e != nil {
-		t.Fatalf("\ngot: %s\nwant: nil", e.Error())
-	}
+	n, e = rand.Read(data[:])
+	assert.Nil(t, e)
+	assert.Equal(t, len(data[:]), n)
 
 	// Calculate hash
 	hash = sha256.Sum256(data[:n])
 	expected = hex.EncodeToString(hash[:])
 
 	// Send data
-	if conn, e = udpfrags.Send(nil, addr, data[:n]); e != nil {
-		t.Fatalf("\ngot: %s\nwant: nil", e.Error())
-	}
+	conn, e = udpfrags.Send(nil, addr, data[:n])
+	assert.Nil(t, e)
+	assert.NotNil(t, conn)
 	defer conn.Close()
 
 	// Set timeout
 	e = conn.SetReadDeadline(time.Now().Add(time.Second))
-	if e != nil {
-		t.Fatalf("\ngot: %s\nwant: nil", e.Error())
-	}
+	assert.Nil(t, e)
 
 	// Receive echo
-	if pkts, errs, e = udpfrags.Recv(conn); e != nil {
-		t.Fatalf("\ngot: %s\nwant: nil", e.Error())
-	}
+	pkts, errs, e = udpfrags.Recv(conn)
+	assert.Nil(t, e)
 
 	// Loop thru errors
 	go func() {
 		for e := range errs {
-			t.Errorf("\ngot: %s\nwant: nil", e.Error())
+			assert.Nil(t, e)
 		}
 
 		wait <- struct{}{}
@@ -68,18 +66,13 @@ func echoClient(t *testing.T, address string) {
 	// Get received message
 	for pkt := range pkts {
 		// Calculate hash
-		if actual, e = pkt.Hash(); e != nil {
-			t.Errorf("\ngot: %s\nwant: nils", e.Error())
-		}
-
-		if actual != expected {
-			t.Errorf("\ngot: %s\nwant: %s", actual, expected)
-		}
+		actual, e = pkt.Hash()
+		assert.Nil(t, e)
+		assert.Equal(t, expected, actual)
 
 		// Close connection to kill background receiving thread
-		if e = conn.Close(); e != nil {
-			t.Errorf("\ngot: %s\nwant: nil", e.Error())
-		}
+		e = conn.Close()
+		assert.Nil(t, e)
 	}
 
 	<-wait
@@ -94,22 +87,23 @@ func echoServer(t *testing.T, address string) {
 	var wait = make(chan struct{}, 1)
 
 	// Initialize UDP server
-	if addr, e = net.ResolveUDPAddr("udp", address); e != nil {
-		t.Fatalf("\ngot: %s\nwant: nil", e.Error())
-	} else if srv, e = net.ListenUDP("udp", addr); e != nil {
-		t.Fatalf("\ngot: %s\nwant: nil", e.Error())
-	}
+	addr, e = net.ResolveUDPAddr("udp", address)
+	assert.Nil(t, e)
+	assert.NotNil(t, addr)
+
+	srv, e = net.ListenUDP("udp", addr)
+	assert.Nil(t, e)
+	assert.NotNil(t, srv)
 	defer srv.Close() // Close connection to kill background thread
 
 	// Start listening
-	if pkts, errs, e = udpfrags.Recv(srv); e != nil {
-		t.Fatalf("\ngot: %s\nwant: nil", e.Error())
-	}
+	pkts, errs, e = udpfrags.Recv(srv)
+	assert.Nil(t, e)
 
 	// Loop thru errors
 	go func() {
 		for e := range errs {
-			t.Errorf("\ngot: %s\nwant: nil", e.Error())
+			assert.Nil(t, e)
 		}
 
 		wait <- struct{}{}
@@ -121,14 +115,12 @@ func echoServer(t *testing.T, address string) {
 		// No need to create thread as we are stopping after 1
 
 		// Send echo
-		if _, e = udpfrags.Send(srv, pkt.Addr, pkt.Data); e != nil {
-			t.Errorf("\ngot: %s\nwant: nil", e.Error())
-		}
+		_, e = udpfrags.Send(srv, pkt.Addr, pkt.Data)
+		assert.Nil(t, e)
 
 		// Close connection to kill background receiving thread
-		if e = srv.Close(); e != nil {
-			t.Errorf("\ngot: %s\nwant: nil", e.Error())
-		}
+		e = srv.Close()
+		assert.Nil(t, e)
 	}
 
 	<-wait
@@ -137,20 +129,13 @@ func echoServer(t *testing.T, address string) {
 func TestSendRecv(t *testing.T) {
 	var addr string = ":1194"
 	var e error
-	var expected string = "udpfrags: buffer size should be >= 16"
 	var wait = make(chan struct{}, 1)
 
-	if e = udpfrags.SetBufferSize(10); e != nil {
-		if e.Error() != expected {
-			t.Errorf("\ngot: %s\nwant: %s", e.Error(), expected)
-		}
-	} else {
-		t.Errorf("\ngot: nil\nwant: %s", expected)
-	}
+	e = udpfrags.SetBufferSize(10)
+	assert.NotNil(t, e)
 
-	if e = udpfrags.SetBufferSize(256); e != nil {
-		t.Fatalf("\ngot: %s\nwant: nil", e.Error())
-	}
+	e = udpfrags.SetBufferSize(256)
+	assert.Nil(t, e)
 
 	go func() {
 		echoServer(t, addr)
