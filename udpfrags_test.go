@@ -23,7 +23,7 @@ func echoClient(t *testing.T, address string) {
 	var hash [sha256.Size]byte
 	var n int
 	var pkts chan *udpfrags.UDPPkt
-	var wait = make(chan struct{}, 1)
+	var wait chan struct{} = make(chan struct{}, 1)
 
 	// Resolve address
 	addr, e = net.ResolveUDPAddr("udp", address)
@@ -84,7 +84,7 @@ func echoServer(t *testing.T, address string) {
 	var errs chan error
 	var pkts chan *udpfrags.UDPPkt
 	var srv *net.UDPConn
-	var wait = make(chan struct{}, 1)
+	var wait chan struct{} = make(chan struct{}, 1)
 
 	// Initialize UDP server
 	addr, e = net.ResolveUDPAddr("udp", address)
@@ -129,7 +129,7 @@ func echoServer(t *testing.T, address string) {
 func TestSendRecv(t *testing.T) {
 	var addr string = ":1194"
 	var e error
-	var wait = make(chan struct{}, 1)
+	var wait chan struct{} = make(chan struct{}, 1)
 
 	e = udpfrags.SetBufferSize(10)
 	assert.NotNil(t, e)

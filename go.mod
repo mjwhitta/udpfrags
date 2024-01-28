@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/mjwhitta/errors v1.0.2
-	github.com/mjwhitta/frgmnt v1.4.7
+	github.com/mjwhitta/frgmnt v1.4.8
 	github.com/stretchr/testify v1.8.4
 )
 

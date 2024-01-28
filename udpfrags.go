@@ -14,8 +14,8 @@ import (
 // errors. The background thread is terminated when the specified
 // *net.UDPConn is closed by the caller.
 func Recv(c *net.UDPConn) (chan *UDPPkt, chan error, error) {
-	var errs = make(chan error, 1024)
-	var msgs = make(chan *UDPPkt, 1024)
+	var errs chan error = make(chan error, 1024)
+	var msgs chan *UDPPkt = make(chan *UDPPkt, 1024)
 
 	if c == nil {
 		return msgs, errs, errors.New("UDP connection is nil")
@@ -35,8 +35,8 @@ func recvFrag(c *net.UDPConn, msgs chan *UDPPkt, errs chan error) {
 	var frags uint32
 	var isClosed bool
 	var n int
-	var q = map[string]*UDPPkt{}
-	var recv = make([]byte, bufSize)
+	var q map[string]*UDPPkt = map[string]*UDPPkt{}
+	var recv []byte = make([]byte, bufSize)
 
 	for {
 		// Read incoming fragment
@@ -122,7 +122,7 @@ func Send(
 	// Send data in fragments
 	e = s.Each(
 		func(fragNum int, numFrags int, frag []byte) error {
-			var pkt = make([]byte, len(frag)+8)
+			var pkt []byte = make([]byte, len(frag)+8)
 
 			binary.BigEndian.PutUint32(pkt[:4], uint32(fragNum))
 			binary.BigEndian.PutUint32(pkt[4:8], uint32(numFrags))
