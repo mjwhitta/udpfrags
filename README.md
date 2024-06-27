@@ -15,7 +15,7 @@ A simple Go library to send and receive data via UDP in fragments.
 Open a terminal and run the following:
 
 ```
-$ go get --ldflags "-s -w" --trimpath -u github.com/mjwhitta/udpfrags
+$ go get -u github.com/mjwhitta/udpfrags
 ```
 
 ## Usage
