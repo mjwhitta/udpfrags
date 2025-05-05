@@ -4,4 +4,4 @@ package udpfrags
 var bufSize int = 1024 // 1KB
 
 // Version is the package version.
-const Version string = "1.3.12"
+const Version string = "1.3.13"
