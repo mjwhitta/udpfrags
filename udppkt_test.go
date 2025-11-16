@@ -1,3 +1,4 @@
+//nolint:godoclint // These are tests
 package udpfrags_test
 
 import (
@@ -13,9 +14,9 @@ func TestPacketLoss(t *testing.T) {
 	var e error
 
 	addr, e = net.ResolveUDPAddr("udp", ":1194")
-	assert.Nil(t, e)
+	assert.NoError(t, e)
 	assert.NotNil(t, addr)
 
 	_, e = udpfrags.NewUDPPkt(addr, 1).Hash()
-	assert.NotNil(t, e)
+	assert.Error(t, e)
 }

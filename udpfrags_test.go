@@ -1,3 +1,4 @@
+//nolint:godoclint // These are tests
 package udpfrags_test
 
 import (
@@ -5,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,27 +14,79 @@ import (
 	assert "github.com/stretchr/testify/require"
 )
 
-func echoClient(t *testing.T, address string) {
+func TestSendRecv(t *testing.T) {
 	var actual string
 	var addr *net.UDPAddr
+	var address string = ":1194"
+	var allErrs chan error = make(chan error, 16)
+	var clientErrs chan error
+	var clientPkts chan *udpfrags.UDPPkt
 	var conn *net.UDPConn
 	var data [4096]byte
 	var e error
-	var errs chan error
 	var expected string
 	var hash [sha256.Size]byte
 	var n int
-	var pkts chan *udpfrags.UDPPkt
-	var wait chan struct{} = make(chan struct{}, 1)
+	var srv *net.UDPConn
+	var svrErrs chan error
+	var svrPkts chan *udpfrags.UDPPkt
+	var wg sync.WaitGroup
 
-	// Resolve address
 	addr, e = net.ResolveUDPAddr("udp", address)
-	assert.Nil(t, e)
+	assert.NoError(t, e)
 	assert.NotNil(t, addr)
+
+	e = udpfrags.SetBufferSize(10)
+	assert.Error(t, e)
+
+	e = udpfrags.SetBufferSize(256)
+	assert.NoError(t, e)
+
+	// Initialize UDP server
+	srv, e = net.ListenUDP("udp", addr)
+	assert.NoError(t, e)
+	assert.NotNil(t, srv)
+	defer func() {
+		// Ensure close on test fail
+		if srv != nil {
+			_ = srv.Close()
+		}
+	}()
+
+	// Start listening
+	svrPkts, svrErrs, e = udpfrags.Recv(srv)
+	assert.NoError(t, e)
+
+	wg.Add(1)
+
+	// Server goroutine
+	go func() {
+		// Loop thru received messages
+		for pkt := range svrPkts {
+			// No need to fork as we are stopping after 1
+
+			// Send echo
+			_, e = udpfrags.Send(srv, pkt.Addr, pkt.Data)
+			allErrs <- e
+
+			// Close server to kill background receiving thread
+			e = srv.Close()
+			srv = nil
+
+			allErrs <- e
+		}
+
+		// Loop thru errors
+		for e := range svrErrs {
+			allErrs <- e
+		}
+
+		wg.Done()
+	}()
 
 	// Generate random data
 	n, e = rand.Read(data[:])
-	assert.Nil(t, e)
+	assert.NoError(t, e)
 	assert.Equal(t, len(data[:]), n)
 
 	// Calculate hash
@@ -41,109 +95,54 @@ func echoClient(t *testing.T, address string) {
 
 	// Send data
 	conn, e = udpfrags.Send(nil, addr, data[:n])
-	assert.Nil(t, e)
+	assert.NoError(t, e)
 	assert.NotNil(t, conn)
-	defer conn.Close()
+	defer func() {
+		// Ensure close on test fail
+		if conn != nil {
+			_ = conn.Close()
+		}
+	}()
 
 	// Set timeout
 	e = conn.SetReadDeadline(time.Now().Add(time.Second))
-	assert.Nil(t, e)
+	assert.NoError(t, e)
 
 	// Receive echo
-	pkts, errs, e = udpfrags.Recv(conn)
-	assert.Nil(t, e)
+	clientPkts, clientErrs, e = udpfrags.Recv(conn)
+	assert.NoError(t, e)
 
-	// Loop thru errors
+	wg.Add(1)
+
+	// Client goroutine
 	go func() {
-		for e := range errs {
-			assert.Nil(t, e)
+		// Get received message
+		for pkt := range clientPkts {
+			// Calculate hash
+			actual, e = pkt.Hash()
+			allErrs <- e
+
+			// Close connection to kill background receiving thread
+			e = conn.Close()
+			conn = nil
+
+			allErrs <- e
 		}
 
-		wait <- struct{}{}
-		close(wait)
-	}()
-
-	// Get received message
-	for pkt := range pkts {
-		// Calculate hash
-		actual, e = pkt.Hash()
-		assert.Nil(t, e)
-		assert.Equal(t, expected, actual)
-
-		// Close connection to kill background receiving thread
-		e = conn.Close()
-		assert.Nil(t, e)
-	}
-
-	<-wait
-}
-
-func echoServer(t *testing.T, address string) {
-	var addr *net.UDPAddr
-	var e error
-	var errs chan error
-	var pkts chan *udpfrags.UDPPkt
-	var srv *net.UDPConn
-	var wait chan struct{} = make(chan struct{}, 1)
-
-	// Initialize UDP server
-	addr, e = net.ResolveUDPAddr("udp", address)
-	assert.Nil(t, e)
-	assert.NotNil(t, addr)
-
-	srv, e = net.ListenUDP("udp", addr)
-	assert.Nil(t, e)
-	assert.NotNil(t, srv)
-	defer srv.Close() // Close connection to kill background thread
-
-	// Start listening
-	pkts, errs, e = udpfrags.Recv(srv)
-	assert.Nil(t, e)
-
-	// Loop thru errors
-	go func() {
-		for e := range errs {
-			assert.Nil(t, e)
+		// Loop thru errors
+		for e := range clientErrs {
+			allErrs <- e
 		}
 
-		wait <- struct{}{}
-		close(wait)
+		wg.Done()
 	}()
 
-	// Loop thru received messages
-	for pkt := range pkts {
-		// No need to create thread as we are stopping after 1
+	wg.Wait()
+	close(allErrs)
 
-		// Send echo
-		_, e = udpfrags.Send(srv, pkt.Addr, pkt.Data)
-		assert.Nil(t, e)
+	assert.Equal(t, expected, actual)
 
-		// Close connection to kill background receiving thread
-		e = srv.Close()
-		assert.Nil(t, e)
+	for e = range allErrs {
+		assert.NoError(t, e)
 	}
-
-	<-wait
-}
-
-func TestSendRecv(t *testing.T) {
-	var addr string = ":1194"
-	var e error
-	var wait chan struct{} = make(chan struct{}, 1)
-
-	e = udpfrags.SetBufferSize(10)
-	assert.NotNil(t, e)
-
-	e = udpfrags.SetBufferSize(256)
-	assert.Nil(t, e)
-
-	go func() {
-		echoServer(t, addr)
-		wait <- struct{}{}
-		close(wait)
-	}()
-
-	time.Sleep(time.Second)
-	echoClient(t, addr)
-	<-wait
 }

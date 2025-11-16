@@ -14,8 +14,8 @@ import (
 // errors. The background thread is terminated when the specified
 // *net.UDPConn is closed by the caller.
 func Recv(c *net.UDPConn) (chan *UDPPkt, chan error, error) {
-	var errs chan error = make(chan error, 1024)
-	var msgs chan *UDPPkt = make(chan *UDPPkt, 1024)
+	var errs chan error = make(chan error, QueueSize)
+	var msgs chan *UDPPkt = make(chan *UDPPkt, QueueSize)
 
 	if c == nil {
 		return msgs, errs, errors.New("UDP connection is nil")
@@ -31,8 +31,8 @@ func Recv(c *net.UDPConn) (chan *UDPPkt, chan error, error) {
 func recvFrag(c *net.UDPConn, msgs chan *UDPPkt, errs chan error) {
 	var addr *net.UDPAddr
 	var e error
-	var frag uint32
-	var frags uint32
+	var frag uint64
+	var frags uint64
 	var isClosed bool
 	var n int
 	var q map[string]*UDPPkt = map[string]*UDPPkt{}
@@ -56,21 +56,23 @@ func recvFrag(c *net.UDPConn, msgs chan *UDPPkt, errs chan error) {
 			}
 
 			continue
-		} else if (addr == nil) || (n <= 8) {
+		} else if (addr == nil) || (n <= fragHdrSize) {
 			continue
 		}
 
 		// Parse header
-		frag = binary.BigEndian.Uint32(recv[:4])
-		frags = binary.BigEndian.Uint32(recv[4:8])
+		frag = binary.BigEndian.Uint64(recv[:fragHdrSize/2])
+		frags = binary.BigEndian.Uint64(
+			recv[fragHdrSize/2 : fragHdrSize],
+		)
 
 		// Create UDPPkt, if needed
 		if _, ok := q[addr.String()]; !ok {
-			q[addr.String()] = NewUDPPkt(addr, int(frags))
+			q[addr.String()] = NewUDPPkt(addr, frags)
 		}
 
 		// Append buffer to appropriate UDPPkt
-		e = q[addr.String()].addFragment(int(frag), recv[8:n])
+		e = q[addr.String()].addFragment(frag, recv[fragHdrSize:n])
 		if e != nil {
 			errs <- e
 			continue
@@ -83,6 +85,7 @@ func recvFrag(c *net.UDPConn, msgs chan *UDPPkt, errs chan error) {
 			} else {
 				msgs <- q[addr.String()]
 			}
+
 			delete(q, addr.String())
 		}
 	}
@@ -100,7 +103,11 @@ func Send(
 	data []byte,
 ) (*net.UDPConn, error) {
 	var e error
-	var s *frgmnt.Streamer = frgmnt.NewByteStreamer(data, bufSize-8)
+	var s *frgmnt.Streamer = frgmnt.NewByteStreamer(
+		data,
+		//nolint:gosec // G115 - size is 16, no overflow here
+		bufSize-uint64(fragHdrSize),
+	)
 
 	// Initialize connection, if needed
 	if c == nil {
@@ -121,19 +128,24 @@ func Send(
 
 	// Send data in fragments
 	e = s.Each(
-		func(fragNum int, numFrags int, frag []byte) error {
-			var pkt []byte = make([]byte, len(frag)+8)
+		func(fragNum uint64, numFrags uint64, frag []byte) error {
+			var pkt []byte = make([]byte, len(frag)+fragHdrSize)
 
-			binary.BigEndian.PutUint32(pkt[:4], uint32(fragNum))
-			binary.BigEndian.PutUint32(pkt[4:8], uint32(numFrags))
-			copy(pkt[8:], frag[:])
+			binary.BigEndian.PutUint64(pkt[:fragHdrSize/2], fragNum)
+			binary.BigEndian.PutUint64(
+				pkt[fragHdrSize/2:fragHdrSize],
+				numFrags,
+			)
+			copy(pkt[fragHdrSize:], frag)
 
 			if addr == nil {
 				if _, e = c.Write(pkt); e != nil {
+					e = errors.Newf("failed to send fragment: %w", e)
 					return e
 				}
 			} else {
 				if _, e = c.WriteTo(pkt, addr); e != nil {
+					e = errors.Newf("failed to send fragment: %w", e)
 					return e
 				}
 			}
@@ -149,11 +161,13 @@ func Send(
 }
 
 // SetBufferSize will set the maximum size of each fragment.
-func SetBufferSize(size int) error {
-	if size < 16 {
-		return errors.New("buffer size should be >= 16")
+func SetBufferSize(size uint64) error {
+	//nolint:gosec // G115 - size is 16, no overflow here
+	if size <= uint64(fragHdrSize) {
+		return errors.Newf("buffer size should be > %d", fragHdrSize)
 	}
 
 	bufSize = size
+
 	return nil
 }

@@ -13,15 +13,15 @@ type UDPPkt struct {
 	Addr    *net.UDPAddr
 	builder *frgmnt.Builder
 	Data    []byte
-	Length  int
+	Length  uint64
 }
 
 // NewUDPPkt will return a pointer to a new UDPPkt instance.
-func NewUDPPkt(addr *net.UDPAddr, frags int) *UDPPkt {
+func NewUDPPkt(addr *net.UDPAddr, frags uint64) *UDPPkt {
 	return &UDPPkt{Addr: addr, builder: frgmnt.NewByteBuilder(frags)}
 }
 
-func (p *UDPPkt) addFragment(frag int, data []byte) error {
+func (p *UDPPkt) addFragment(frag uint64, data []byte) error {
 	if e := p.builder.Add(frag, data); e != nil {
 		return errors.Newf("failed to add fragment %d: %w", frag, e)
 	}
@@ -36,7 +36,7 @@ func (p *UDPPkt) finalize() error {
 		return errors.Newf("failed to get reassembled data: %w", e)
 	}
 
-	p.Length = len(p.Data)
+	p.Length = uint64(len(p.Data))
 
 	return nil
 }
