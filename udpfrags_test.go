@@ -61,6 +61,8 @@ func TestSendRecv(t *testing.T) {
 
 	// Server goroutine
 	go func() {
+		var e error
+
 		// Loop thru received messages
 		for pkt := range svrPkts {
 			// No need to fork as we are stopping after 1
@@ -77,7 +79,7 @@ func TestSendRecv(t *testing.T) {
 		}
 
 		// Loop thru errors
-		for e := range svrErrs {
+		for e = range svrErrs {
 			allErrs <- e
 		}
 
@@ -116,6 +118,8 @@ func TestSendRecv(t *testing.T) {
 
 	// Client goroutine
 	go func() {
+		var e error
+
 		// Get received message
 		for pkt := range clientPkts {
 			// Calculate hash
@@ -130,7 +134,7 @@ func TestSendRecv(t *testing.T) {
 		}
 
 		// Loop thru errors
-		for e := range clientErrs {
+		for e = range clientErrs {
 			allErrs <- e
 		}
 
