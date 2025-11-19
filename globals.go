@@ -1,7 +1,7 @@
 package udpfrags
 
 // Version is the package version.
-const Version string = "1.4.0"
+const Version string = "1.4.1"
 
 var (
 	// QueueSize is the size of the receiving queue.
