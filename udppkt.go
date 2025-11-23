@@ -46,10 +46,14 @@ func (p *UDPPkt) finished() bool {
 }
 
 // Hash will return a SHA256 has of the packet's data.
-func (p *UDPPkt) Hash() (s string, e error) {
+func (p *UDPPkt) Hash() (string, error) {
+	var e error
+	var s string
+
 	if s, e = p.builder.Hash(); e != nil {
 		e = errors.Newf("failed to get reassembled data: %w", e)
+		return "", e
 	}
 
-	return
+	return s, e
 }
